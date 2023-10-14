@@ -1,69 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
 namespace XPK_Explorer
 {
-    public abstract class ArchiveEntry
+    public class FileEntry
     {
-        public ushort PathLength;
-        public string Path;
-    }
-
-    public class ArchiveFolderEntry : ArchiveEntry
-    {
-        public uint StartFileOffset;
-        public List<ArchiveEntry> ChildEntries;
-
-        public List<ArchiveEntry> GetArchiveEntries()
-        {
-            var entries = new List<ArchiveEntry>();
-            var pathStack = new Stack<ArchiveEntry>(ChildEntries);
-
-            while (pathStack.Count > 0)
-            {
-                var entry = pathStack.Pop();
-                entries.Add(entry);
-
-                if (entry.GetType() == typeof(ArchiveFolderEntry))
-                {
-                    var folder = (ArchiveFolderEntry)entry;
-
-                    foreach (var childEntry in folder.ChildEntries)
-                    {
-                        pathStack.Push(childEntry);
-                    }
-                }
-            }
-
-            return entries;
-        }
-    }
-
-    public class ArchiveFileEntry : ArchiveEntry
-    {
-        public uint Index;
-        public string Parent;
-    }
-
-    public struct FileSizeData
-    {
-        public uint Offset;
-        public uint Size;
+        public string Name { get; set; }
+        public string PathWithoutName { get; set; }
+        public string FullPath => Path.Combine(PathWithoutName, Name);
     }
 
     public class Archive
     {
-        public List<ArchiveEntry> Entries;
-        public List<FileSizeData> FileSizeData;
-        public string XpkFilePath;
-        public string Name;
-
-        public Dictionary<string, ArchiveEntry> ArchiveEntries;
+        private const int HEADER_BYTES_SIZE = 12;
+        private const int FILE_ENTRY_TYPE = 1;
+        private const int FOLDER_ENTRY_TYPE = 2;
 
         public static Archive Open(string path, string name)
         {
@@ -73,136 +27,82 @@ namespace XPK_Explorer
             var directoryDataFile = Path.Combine(xpktFolder, $"{name}_D.bin");
             var fileSizeDataFile = Path.Combine(xpktFolder, $"{name}_F.bin");
 
-            var entries = new List<ArchiveEntry>();
+            var entries = new LinkedList<FileEntry>();
 
             using (var binaryReader = new BinaryReader(File.OpenRead(directoryDataFile)))
             {
-                // Skip the header
-                binaryReader.BaseStream.Seek(12, SeekOrigin.Begin);
+                // Skip the header, it is currently unknown how to decode it
+                var baseStream = binaryReader.BaseStream;
+                baseStream.Seek(HEADER_BYTES_SIZE, SeekOrigin.Begin);
+
+                // Get the offset where folder description starts and move to it
                 var folderBeginOffset = binaryReader.ReadUInt32();
+                baseStream.Seek(folderBeginOffset, SeekOrigin.Begin);
 
-                var offset = folderBeginOffset;
-                var parent = string.Empty;
+                var entryPath = new List<string>();
+                var folderIndentation = new Stack<long>();
 
+                // There's no explicit data of amount of folders
+                // We need to read all the bytes and validate them manually
                 while (true)
                 {
-                    if (!TryReadArchiveEntry(binaryReader, ref offset, out var entry, parent))
+                    var entryType = binaryReader.ReadUInt16();
+
+                    // Most likely, this is the end of entry files chain
+                    if (entryType == 0)
                     {
-                        break;
+                        if (folderIndentation.Count > 0)
+                        {
+                            var position = folderIndentation.Pop();
+                            baseStream.Seek(position, SeekOrigin.Begin);
+
+                            // TODO: refactor?
+                            entryType = binaryReader.ReadUInt16();
+                        }
+                        else
+                        {
+                            entryPath.Clear();
+                            break;
+                        }
                     }
 
-                    entries.Add(entry);
-                }
-            }
+                    // Read the contents of the entry
+                    var pathLength = binaryReader.ReadUInt16();
+                    var startFileOffset = binaryReader.ReadUInt32();
+                    var pathBytes = binaryReader.ReadBytes(pathLength);
+                    var entryName = Encoding.UTF8.GetString(pathBytes);
 
-            var fileSizeData = new List<FileSizeData>();
+                    // Skip the trailing byte
+                    baseStream.Seek(1, SeekOrigin.Current);
 
-            using (var binaryReader = new BinaryReader(File.OpenRead(fileSizeDataFile)))
-            {
-                // Skip the header
-                binaryReader.BaseStream.Seek(12, SeekOrigin.Begin);
-
-                while (binaryReader.BaseStream.Position != binaryReader.BaseStream.Length)
-                {
-                    var offset = binaryReader.ReadUInt32();
-                    var size = binaryReader.ReadUInt32();
-                    binaryReader.BaseStream.Seek(4, SeekOrigin.Current);
-
-                    var data = new FileSizeData()
+                    // Check the type of entry to process it
+                    switch (entryType)
                     {
-                        Offset = offset,
-                        Size = size
-                    };
+                        case FILE_ENTRY_TYPE:
+                            var fileEntry = new FileEntry()
+                            {
+                                Name = entryName,
+                                PathWithoutName = Path.Combine(entryPath.ToArray())
+                            };
 
-                    fileSizeData.Add(data);
-                }
-            }
+                            entries.AddLast(fileEntry);
+                            break;
 
-            var archive = new Archive
-            {
-                Entries = entries,
-                FileSizeData = fileSizeData,
-                XpkFilePath = Path.Combine(xpkFolder, $"{name}.XPK"),
-                Name = name
-            };
-            return archive;
-        }
+                        case FOLDER_ENTRY_TYPE:
+                            entryPath.Add(entryName);
 
-        private static bool TryReadArchiveEntry(BinaryReader binaryReader, ref uint offset, out ArchiveEntry entry, string parent)
-        {
-            binaryReader.BaseStream.Seek(offset, SeekOrigin.Begin);
+                            // TODO: Get child entries
+                            folderIndentation.Push(baseStream.Position);
+                            baseStream.Seek(startFileOffset, SeekOrigin.Begin);
+                            break;
 
-            var type = binaryReader.ReadUInt16();
-
-            if (type == 0)
-            {
-                entry = null;
-                return false;
-            }
-
-            var pathLength = binaryReader.ReadUInt16();
-            var startFileOffset = binaryReader.ReadUInt32();
-            var pathBytes = binaryReader.ReadBytes(pathLength);
-            binaryReader.BaseStream.Seek(1, SeekOrigin.Current);
-
-            offset = (uint)binaryReader.BaseStream.Position;
-            var path = Encoding.UTF8.GetString(pathBytes);
-
-            switch (type)
-            {
-                case 1:
-                    entry = new ArchiveFileEntry
-                    {
-                        PathLength = pathLength,
-                        Index = startFileOffset,
-                        Path = path,
-                        Parent = Path.Combine(parent, path)
-                    };
-                    return true;
-
-                case 2:
-                    var folderOffset = startFileOffset;
-                    var children = new List<ArchiveEntry>();
-
-                    while (TryReadArchiveEntry(binaryReader, ref folderOffset, out var child, Path.Combine(parent, path)))
-                    {
-                        children.Add(child);
+                        default:
+                            throw new Exception("Unknown file type");
                     }
-
-                    entry = new ArchiveFolderEntry
-                    {
-                        PathLength = pathLength,
-                        StartFileOffset = startFileOffset,
-                        Path = path,
-                        ChildEntries = children
-                    };
-
-                    return true;
-
-                default:
-                    throw new Exception("Unknown file type");
-            }
-        }
-
-        public byte[] GetFileBytes(string path)
-        {
-            var p = path.Replace($"{Name}\\", string.Empty);
-            var e = Entries.Where(x => x.GetType() == typeof(ArchiveFolderEntry)).Cast<ArchiveFolderEntry>()
-                .SelectMany(x => x.GetArchiveEntries()).Where(x => x.GetType() == typeof(ArchiveFileEntry)).Cast<ArchiveFileEntry>().ToDictionary(x => x.Parent, y => y);
-
-            if (e.TryGetValue(p, out var f))
-            {
-                var size = FileSizeData[(int)f.Index];
-
-                using (var binaryReader = new BinaryReader(File.OpenRead(XpkFilePath)))
-                {
-                    // Skip the header
-                    binaryReader.BaseStream.Seek(size.Offset, SeekOrigin.Begin);
-                    return binaryReader.ReadBytes((int)size.Size);
                 }
             }
 
-            return null;
+            return new Archive();
         }
     }
 }
