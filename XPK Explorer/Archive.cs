@@ -49,7 +49,7 @@ namespace XPK_Explorer
                 var folderBeginOffset = binaryReader.ReadUInt32();
                 baseStream.Seek(folderBeginOffset, SeekOrigin.Begin);
 
-                var entryPath = new List<string>();
+                var entryPath = new Stack<string>();
                 var folderIndentation = new Stack<long>();
 
                 // There's no explicit data of amount of folders
@@ -65,7 +65,7 @@ namespace XPK_Explorer
                         {
                             var position = folderIndentation.Pop();
                             baseStream.Seek(position, SeekOrigin.Begin);
-                            entryPath.Clear();
+                            entryPath.Pop();
                             continue;
                         }
 
@@ -88,14 +88,14 @@ namespace XPK_Explorer
                             var fileEntry = new FileEntry()
                             {
                                 Name = entryName,
-                                PathWithoutName = Path.Combine(entryPath.ToArray())
+                                PathWithoutName = Path.Combine(entryPath.Reverse().ToArray())
                             };
 
                             entries.AddLast(fileEntry);
                             break;
 
                         case FOLDER_ENTRY_TYPE:
-                            entryPath.Add(entryName);
+                            entryPath.Push(entryName);
                             folderIndentation.Push(baseStream.Position);
                             baseStream.Seek(startFileOffset, SeekOrigin.Begin);
                             break;

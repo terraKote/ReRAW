@@ -68,16 +68,9 @@ namespace XPK_Explorer
             var archives = Directory.GetFiles(xpkFolderPath).Select(Path.GetFileNameWithoutExtension);
 
             var archivePackages = new List<Archive>();
-            var allowedArchives = new List<string>()
-            {
-                "TF"
-            };
 
             foreach (var archiveFile in archives)
             {
-                if (!allowedArchives.Contains(archiveFile))
-                    continue;
-
                 var archive = Archive.Open(path, archiveFile);
 
                 var nodes = CreateNodesFromPathList(archive.FilePathEntries, archiveFile);
