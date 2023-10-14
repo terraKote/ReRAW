@@ -35,6 +35,7 @@ namespace XPK_Explorer
                 case DialogResult.None:
                     break;
                 case DialogResult.OK:
+                    CleanUp();
                     PopulateTreeView();
                     break;
                 case DialogResult.Cancel:
@@ -52,6 +53,12 @@ namespace XPK_Explorer
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private void CleanUp()
+        {
+            _archives?.Clear();
+            treeView1.Nodes.Clear();
         }
 
         private void PopulateTreeView()
@@ -121,6 +128,62 @@ namespace XPK_Explorer
 
         private void OnContextMenuClick(object sender, EventArgs e)
         {
+            var path = _selectedNode.FullPath;
+
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            var header = "XPK";
+
+            var index = path.IndexOf(header, StringComparison.Ordinal) + header.Length + 1;
+
+            if (index >= path.Length)
+            {
+                return;
+            }
+
+            path = path.Substring(index);
+
+            var archiveName = path.Split('\\').First();
+
+            index = path.IndexOf(archiveName, StringComparison.Ordinal) + archiveName.Length + 1;
+
+            if (index >= path.Length)
+            {
+                return;
+            }
+
+            path = path.Substring(index);
+
+            var archive = _archives.FirstOrDefault(x => string.Equals(x.Name, archiveName));
+
+            if (archive == null)
+            {
+                MessageBox.Show($"Couldn't locate archive: {archiveName}");
+                return;
+            }
+
+            var fileName = Path.GetFileName(path);
+
+            if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
+            {
+                MessageBox.Show($"Exporting folders is currently unsupported");
+                return;
+            }
+
+            var fileEntry = archive.GetFileEntry(path);
+            var bytes = archive.GetFileEntryBytes(fileEntry);
+
+            if (bytes.Length > 0)
+            {
+                saveFileDialog1.FileName = fileName;
+                var saveDialog = saveFileDialog1.ShowDialog();
+
+                if (saveDialog == DialogResult.OK)
+                {
+                    File.WriteAllBytes(saveFileDialog1.FileName, bytes);
+                }
+            }
         }
     }
 }
