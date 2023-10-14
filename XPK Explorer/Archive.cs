@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -7,26 +8,24 @@ using System.Windows.Forms;
 
 namespace XPK_Explorer
 {
-    public class FileEntry
-    {
-        public string Name { get; set; }
-        public string PathWithoutName { get; set; }
-        public string FullPath => Path.Combine(PathWithoutName, Name);
-    }
-
     public class Archive
     {
         private const int HEADER_BYTES_SIZE = 12;
         private const int FILE_ENTRY_TYPE = 1;
         private const int FOLDER_ENTRY_TYPE = 2;
 
-        private LinkedList<FileEntry> _entries;
+        private readonly LinkedList<FileEntry> _entries;
+        private readonly string _pathToXpkFile;
+
+        public string Name { get; }
 
         public IEnumerable<string> FilePathEntries => _entries.Select(x => x.FullPath);
 
-        private Archive(LinkedList<FileEntry> entries)
+        private Archive(string name, LinkedList<FileEntry> entries, string pathToXpkFile)
         {
+            Name = name;
             _entries = entries;
+            _pathToXpkFile = pathToXpkFile;
         }
 
         public static Archive Open(string path, string name)
@@ -39,6 +38,7 @@ namespace XPK_Explorer
 
             var entries = new LinkedList<FileEntry>();
 
+            // Read directory data file, to get the list of contents
             using (var binaryReader = new BinaryReader(File.OpenRead(directoryDataFile)))
             {
                 // Skip the header, it is currently unknown how to decode it
@@ -85,12 +85,7 @@ namespace XPK_Explorer
                     switch (entryType)
                     {
                         case FILE_ENTRY_TYPE:
-                            var fileEntry = new FileEntry()
-                            {
-                                Name = entryName,
-                                PathWithoutName = Path.Combine(entryPath.Reverse().ToArray())
-                            };
-
+                            var fileEntry = new FileEntry(entryName, Path.Combine(entryPath.Reverse().ToArray()));
                             entries.AddLast(fileEntry);
                             break;
 
@@ -106,7 +101,41 @@ namespace XPK_Explorer
                 }
             }
 
-            return new Archive(entries);
+            // Read file size data file, to get a size and an offset of a file
+            using (var binaryReader = new BinaryReader(File.OpenRead(fileSizeDataFile)))
+            {
+                // Skip the header, it is currently unknown how to decode it
+                var baseStream = binaryReader.BaseStream;
+                baseStream.Seek(HEADER_BYTES_SIZE, SeekOrigin.Begin);
+
+                foreach (var fileEntry in entries)
+                {
+                    var offset = binaryReader.ReadUInt32();
+                    var size = binaryReader.ReadUInt32();
+
+                    fileEntry.Offset = offset;
+                    fileEntry.Size = size;
+
+                    // Skip end of entry empty bytes
+                    baseStream.Seek(4, SeekOrigin.Current);
+                }
+            }
+
+            return new Archive(name, entries, Path.Combine(xpkFolder, $"{name}.XPK"));
+        }
+
+        public FileEntry GetFileEntry(string path)
+        {
+            return _entries.FirstOrDefault(x => string.Equals(x.FullPath, path));
+        }
+
+        public byte[] GetFileEntryBytes(FileEntry fileEntry)
+        {
+            using (var binaryReader = new BinaryReader(File.OpenRead(_pathToXpkFile)))
+            {
+                binaryReader.BaseStream.Seek(fileEntry.Offset, SeekOrigin.Begin);
+                return binaryReader.ReadBytes((int)fileEntry.Size);
+            }
         }
     }
 }
