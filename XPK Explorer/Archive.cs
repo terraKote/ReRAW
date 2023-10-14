@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
@@ -18,6 +19,15 @@ namespace XPK_Explorer
         private const int HEADER_BYTES_SIZE = 12;
         private const int FILE_ENTRY_TYPE = 1;
         private const int FOLDER_ENTRY_TYPE = 2;
+
+        private LinkedList<FileEntry> _entries;
+
+        public IEnumerable<string> FilePathEntries => _entries.Select(x => x.FullPath);
+
+        private Archive(LinkedList<FileEntry> entries)
+        {
+            _entries = entries;
+        }
 
         public static Archive Open(string path, string name)
         {
@@ -55,15 +65,11 @@ namespace XPK_Explorer
                         {
                             var position = folderIndentation.Pop();
                             baseStream.Seek(position, SeekOrigin.Begin);
-
-                            // TODO: refactor?
-                            entryType = binaryReader.ReadUInt16();
-                        }
-                        else
-                        {
                             entryPath.Clear();
-                            break;
+                            continue;
                         }
+
+                        break;
                     }
 
                     // Read the contents of the entry
@@ -90,8 +96,6 @@ namespace XPK_Explorer
 
                         case FOLDER_ENTRY_TYPE:
                             entryPath.Add(entryName);
-
-                            // TODO: Get child entries
                             folderIndentation.Push(baseStream.Position);
                             baseStream.Seek(startFileOffset, SeekOrigin.Begin);
                             break;
@@ -102,7 +106,7 @@ namespace XPK_Explorer
                 }
             }
 
-            return new Archive();
+            return new Archive(entries);
         }
     }
 }
