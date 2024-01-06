@@ -139,7 +139,9 @@ namespace XPK_Explorer
             var entryBytes = archive.GetFileEntryBytes(entry);
             var bitmapLoader = new BitmapFileLoader();
 
-            pictureBox1.Image = bitmapLoader.Load(entryBytes);
+            var bitmap = bitmapLoader.Load(Path.GetExtension(filePath), entryBytes);
+            propertyGrid1.SelectedObject = new TextureFileDescription(filePath, entryBytes.LongLength, (uint)bitmap.Width, (uint)bitmap.Height);
+            pictureBox1.Image = bitmap;
         }
         private string GetArchiveName(string fullPath)
         {

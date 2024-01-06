@@ -6,6 +6,6 @@
 
     public abstract class BaseFileLoader<TFile> : BaseFileLoader
     {
-        public abstract TFile Load(byte[] bytes);
+        public abstract TFile Load(string extension, byte[] bytes);
     }
 }
