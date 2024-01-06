@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace XPK_Explorer
+namespace XPK_Explorer.FileManagement.Descriptions
 {
     public class BaseFileDescription
     {

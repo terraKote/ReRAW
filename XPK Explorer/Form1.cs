@@ -7,6 +7,9 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Pfim;
+using XPK_Explorer.FileManagement;
+using XPK_Explorer.FileManagement.Descriptions;
+using XPK_Explorer.FileManagement.Loaders;
 using static System.Net.Mime.MediaTypeNames;
 using Image = System.Drawing.Image;
 using ImageFormat = Pfim.ImageFormat;
@@ -134,44 +137,9 @@ namespace XPK_Explorer
 
             var entry = archive.GetFileEntry(filePath);
             var entryBytes = archive.GetFileEntryBytes(entry);
+            var bitmapLoader = new BitmapFileLoader();
 
-            Bitmap im;
-
-            using (var ms = new MemoryStream(entryBytes))
-            {
-                using (var image = Pfimage.FromStream(ms))
-                {
-                    PixelFormat format;
-
-                    // Convert from Pfim's backend agnostic image format into GDI+'s image format
-                    switch (image.Format)
-                    {
-                        case ImageFormat.Rgba32:
-                            format = PixelFormat.Format32bppArgb;
-                            break;
-                        default:
-                            // see the sample for more details
-                            throw new NotImplementedException();
-                    }
-
-                    // Pin pfim's data array so that it doesn't get reaped by GC, unnecessary
-                    // in this snippet but useful technique if the data was going to be used in
-                    // control like a picture box
-                    var handle = GCHandle.Alloc(image.Data, GCHandleType.Pinned);
-                    try
-                    {
-                        var data = Marshal.UnsafeAddrOfPinnedArrayElement(image.Data, 0);
-                        im = new Bitmap(image.Width, image.Height, image.Stride, format, data);
-                        //bitmap.Save(Path.ChangeExtension(path, ".png"), System.Drawing.Imaging.ImageFormat.Png);
-                    }
-                    finally
-                    {
-                        handle.Free();
-                    }
-                }
-            }
-
-            pictureBox1.Image = im;
+            pictureBox1.Image = bitmapLoader.Load(entryBytes);
         }
         private string GetArchiveName(string fullPath)
         {

@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Windows.Forms;
 
-namespace XPK_Explorer
+namespace XPK_Explorer.FileManagement
 {
     public class Archive
     {

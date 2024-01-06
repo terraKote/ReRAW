@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace XPK_Explorer
+namespace XPK_Explorer.FileManagement
 {
     public class FileEntry
     {
