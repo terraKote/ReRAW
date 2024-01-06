@@ -1,8 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Pfim;
+using static System.Net.Mime.MediaTypeNames;
+using Image = System.Drawing.Image;
+using ImageFormat = Pfim.ImageFormat;
 
 namespace XPK_Explorer
 {
@@ -78,9 +85,6 @@ namespace XPK_Explorer
             treeView1.Nodes.Add(root);
             treeView1.PathSeparator = "\\";
 
-            var xpkFolder = new TreeNode("XPK");
-            root.Nodes.Add(xpkFolder);
-
             var xpkFolderPath = Path.Combine(path, "XPK");
             var archives = Directory.GetFiles(xpkFolderPath).Select(Path.GetFileNameWithoutExtension);
 
@@ -91,7 +95,7 @@ namespace XPK_Explorer
                 var archive = Archive.Open(path, archiveFile);
 
                 var nodes = CreateNodesFromPathList(archive.FilePathEntries, archiveFile);
-                xpkFolder.Nodes.Add(nodes);
+                root.Nodes.Add(nodes);
 
                 archivePackages.Add(archive);
             }
@@ -120,7 +124,90 @@ namespace XPK_Explorer
 
         private void OnNodeSelected(object sender, TreeNodeMouseClickEventArgs e)
         {
-            MessageBox.Show($"Node is selected: {e.Node.FullPath}");
+            var archiveName = GetArchiveName(e.Node.FullPath);
+            var filePath = GetArchiveFilePath(e.Node.FullPath, archiveName);
+
+            var archive = _archives.FirstOrDefault(x => x.Name == archiveName);
+
+            if (archive == null)
+                return;
+
+            var entry = archive.GetFileEntry(filePath);
+            var entryBytes = archive.GetFileEntryBytes(entry);
+
+            Bitmap im;
+
+            using (var ms = new MemoryStream(entryBytes))
+            {
+                using (var image = Pfimage.FromStream(ms))
+                {
+                    PixelFormat format;
+
+                    // Convert from Pfim's backend agnostic image format into GDI+'s image format
+                    switch (image.Format)
+                    {
+                        case ImageFormat.Rgba32:
+                            format = PixelFormat.Format32bppArgb;
+                            break;
+                        default:
+                            // see the sample for more details
+                            throw new NotImplementedException();
+                    }
+
+                    // Pin pfim's data array so that it doesn't get reaped by GC, unnecessary
+                    // in this snippet but useful technique if the data was going to be used in
+                    // control like a picture box
+                    var handle = GCHandle.Alloc(image.Data, GCHandleType.Pinned);
+                    try
+                    {
+                        var data = Marshal.UnsafeAddrOfPinnedArrayElement(image.Data, 0);
+                        im = new Bitmap(image.Width, image.Height, image.Stride, format, data);
+                        //bitmap.Save(Path.ChangeExtension(path, ".png"), System.Drawing.Imaging.ImageFormat.Png);
+                    }
+                    finally
+                    {
+                        handle.Free();
+                    }
+                }
+            }
+
+            pictureBox1.Image = im;
+        }
+        private string GetArchiveName(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath))
+                throw new ArgumentNullException(nameof(fullPath), "Parameter cannot be empty!");
+            var index = fullPath.IndexOf(ROOT, StringComparison.Ordinal) + ROOT.Length + 1;
+
+            if (index >= fullPath.Length)
+            {
+                throw new Exception();
+            }
+
+            fullPath = fullPath.Substring(index);
+
+            return fullPath.Split('\\').First();
+        }
+
+        private string GetArchiveFilePath(string fullPath, string archiveName)
+        {
+            if (string.IsNullOrEmpty(fullPath))
+                throw new ArgumentNullException(nameof(fullPath), "Parameter cannot be empty!");
+
+            var entries = new Queue<string>(fullPath.Split('\\'));
+            var path = string.Empty;
+
+            while (entries.Count > 0)
+            {
+                var entry = entries.Dequeue();
+
+                if (string.Equals(entry, ROOT) || string.Equals(entry, archiveName))
+                    continue;
+
+                path = Path.Combine(path, entry);
+            }
+
+            return path;
         }
 
         private void ExportSelectedItem(object sender, EventArgs e)
