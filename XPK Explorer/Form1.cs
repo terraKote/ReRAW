@@ -8,6 +8,8 @@ namespace XPK_Explorer
 {
     public partial class Form1 : Form
     {
+        private const string ROOT = "{root}";
+
         private TreeNode _selectedNode;
         private MenuItem _menuItem;
         private ContextMenu _contextMenu;
@@ -39,6 +41,7 @@ namespace XPK_Explorer
                 case DialogResult.OK:
                     CleanUp();
                     PopulateTreeView();
+                    UpdateTitle();
                     break;
                 case DialogResult.Cancel:
                     break;
@@ -57,6 +60,11 @@ namespace XPK_Explorer
             }
         }
 
+        private void UpdateTitle()
+        {
+            Text = $"{folderBrowserDialog1.SelectedPath} | XPK Explorer";
+        }
+
         private void CleanUp()
         {
             _archives?.Clear();
@@ -66,7 +74,7 @@ namespace XPK_Explorer
         private void PopulateTreeView()
         {
             var path = folderBrowserDialog1.SelectedPath;
-            var root = new TreeNode(path);
+            var root = new TreeNode(ROOT);
             treeView1.Nodes.Add(root);
             treeView1.PathSeparator = "\\";
 
@@ -112,6 +120,7 @@ namespace XPK_Explorer
 
         private void OnNodeSelected(object sender, TreeNodeMouseClickEventArgs e)
         {
+            MessageBox.Show($"Node is selected: {e.Node.FullPath}");
         }
 
         private void ExportSelectedItem(object sender, EventArgs e)
