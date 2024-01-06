@@ -1,18 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using Pfim;
 using XPK_Explorer.FileManagement;
-using XPK_Explorer.FileManagement.Descriptions;
 using XPK_Explorer.FileManagement.Loaders;
-using static System.Net.Mime.MediaTypeNames;
-using Image = System.Drawing.Image;
-using ImageFormat = Pfim.ImageFormat;
 
 namespace XPK_Explorer
 {
@@ -36,8 +28,6 @@ namespace XPK_Explorer
             _menuItem.Click += OnContextMenuClick;
 
             InitializeComponent();
-
-            propertyGrid1.SelectedObject = new TextureFileDescription(@"Path\To\File.dds", 100, 32, 32);
         }
 
         private void OpenFolder(object sender, EventArgs e)
@@ -129,6 +119,11 @@ namespace XPK_Explorer
         {
             var archiveName = GetArchiveName(e.Node.FullPath);
             var filePath = GetArchiveFilePath(e.Node.FullPath, archiveName);
+            var extension = Path.GetExtension(filePath);
+
+            // check if the file is selected
+            if (string.IsNullOrEmpty(extension))
+                return;
 
             var archive = _archives.FirstOrDefault(x => x.Name == archiveName);
 
@@ -139,9 +134,9 @@ namespace XPK_Explorer
             var entryBytes = archive.GetFileEntryBytes(entry);
             var bitmapLoader = new BitmapFileLoader();
 
-            var bitmap = bitmapLoader.Load(Path.GetExtension(filePath), entryBytes);
-            propertyGrid1.SelectedObject = new TextureFileDescription(filePath, entryBytes.LongLength, (uint)bitmap.Width, (uint)bitmap.Height);
-            pictureBox1.Image = bitmap;
+            //var bitmap = bitmapLoader.Load(extension, entryBytes);
+            //propertyGrid1.SelectedObject = new TextureFileDescription(filePath, entryBytes.LongLength, (uint)bitmap.Width, (uint)bitmap.Height);
+            //pictureBox1.Image = bitmap;
         }
         private string GetArchiveName(string fullPath)
         {

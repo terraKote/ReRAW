@@ -1,14 +1,14 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using Pfim;
-using ImageFormat = Pfim.ImageFormat;
 
 namespace XPK_Explorer.FileManagement.Loaders
 {
+    /// <summary>
+    /// File loader for bitmaps. Can load images from bytes and interpret them as <see cref="Bitmap"/>.
+    /// </summary>
     public class BitmapFileLoader : BaseFileLoader<Bitmap>
     {
         public override Bitmap Load(string extension, byte[] bytes)
@@ -47,12 +47,9 @@ namespace XPK_Explorer.FileManagement.Loaders
 
                     switch (image.Format)
                     {
-                        case ImageFormat.Rgba32:
+                        default:
                             format = PixelFormat.Format32bppArgb;
                             break;
-                        default:
-                            // see the sample for more details
-                            throw new NotImplementedException();
                     }
 
                     var handle = GCHandle.Alloc(image.Data, GCHandleType.Pinned);
