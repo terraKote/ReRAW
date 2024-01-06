@@ -24,6 +24,8 @@ namespace XPK_Explorer
             _menuItem.Click += OnContextMenuClick;
 
             InitializeComponent();
+
+            propertyGrid1.SelectedObject = new TextureFileDescription(@"Path\To\File.dds", 100, 32, 32);
         }
 
         private void OpenFolder(object sender, EventArgs e)
