@@ -1,0 +1,54 @@
+﻿# ====================================================================
+# CMake Build Artifacts
+# ====================================================================
+# Ignore the entire build directory (assuming out-of-source builds)
+/build/
+/build*/
+/out/
+
+# CMake cache and generated build files (if in-source builds occur)
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+CMakeUserPresets.json
+
+# ====================================================================
+# Compiled C Library Outputs and Objects
+# ====================================================================
+# Object files and libraries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables (e.g., test binaries)
+*.exe
+*.out
+*.app
+
+# ====================================================================
+# IDEs and Editors
+# ====================================================================
+# Visual Studio Code
+.vscode/
+.cache/
+
+# Visual Studio
+.vs/
+
+# CLion / JetBrains
+.idea/
+
+# QtCreator
+CMakeLists.txt.user
