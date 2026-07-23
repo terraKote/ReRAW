@@ -23,7 +23,8 @@ typedef struct {
 } FileEntry;
 
 typedef struct {
-    uint16_t parent;
+    uint8_t depth;
+    int16_t parent;
     FileEntry *file;
     uint32_t pointer;
 } TreeNode;

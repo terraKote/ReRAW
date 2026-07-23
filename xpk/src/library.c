@@ -86,7 +86,10 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
     }
 
     // Read the entries recursively
+    int16_t parent_stack[32] = {0};
+
     uint8_t depth = 0;
+    int16_t parent = -1;
     bool is_end_reached = false;
 
     while (!is_end_reached) {
@@ -103,6 +106,8 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
         // Copy depth
         const uint8_t current_depth = depth;
 
+        parent_stack[depth] = parent;
+
         // Evaluate file type
         switch (file_entry->file_type) {
             // Empty data sentinel
@@ -110,10 +115,12 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
             case 0x00:
                 depth--;
 
+                parent = parent_stack[depth];
+
                 const uint32_t previous_offset = offset;
 
                 for (int i = 0; i < next_element_index; i++) {
-                    if (nodes[i].parent != depth)
+                    if (nodes[i].depth != depth)
                         continue;
 
                     offset = nodes[i].pointer;
@@ -122,6 +129,8 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
                 if (previous_offset == offset) {
                     is_end_reached = true;
                 }
+
+                free(file_entry);
                 continue;
 
             // File entry sentinel
@@ -132,6 +141,7 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
             // Directory entry sentinel
             case 0x02:
                 depth++;
+                parent = next_element_index;
                 offset = file_entry->file_index;
                 break;
         }
@@ -144,7 +154,7 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
 
             if (tempNodeBuffer == NULL) {
                 fprintf(stderr, "Error allocating memory for nodes\n");
-                free(tempNodeBuffer);
+                free(file_entry);
                 break;
             }
 
@@ -152,9 +162,10 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
         }
 
         // Assign node
-        nodes[next_element_index].parent = current_depth;
+        nodes[next_element_index].depth = current_depth;
         nodes[next_element_index].file = file_entry;
         nodes[next_element_index].pointer = ftell(file);
+        nodes[next_element_index].parent = parent_stack[current_depth];
 
         next_element_index++;
     }
