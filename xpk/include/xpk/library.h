@@ -30,7 +30,7 @@ typedef struct {
 
 XPK_API bool read_header(const char *file_path, Header *header);
 
-XPK_API bool get_xpkt_d_file_entries(const char *file_path, TreeNode ***tree, uint16_t *entry_count);
+XPK_API bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *entry_count);
 
 XPK_API void clear_xpkt_d_file_entries(TreeNode **tree, uint16_t entry_count);
 
