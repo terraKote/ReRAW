@@ -13,12 +13,18 @@ bool parseArgs(int argc, char *argv[], CliArguments *args) {
     char *command = argv[1];
     char *path = argv[2];
 
-    if (strcmp(command, "header") != 0) {
-        return false;
-    }
-
-    args->command = COMMAND_HEADER;
     strcpy(args->input, path);
 
-    return true;
+    if (strcmp(command, "header") == 0) {
+        args->command = COMMAND_HEADER;
+        return true;
+    }
+
+    if (strcmp(command, "extract_file_table") == 0) {
+        args->command = COMMAND_EXTRACT_FILE_TABLE;
+
+        return true;
+    }
+
+    return false;
 }

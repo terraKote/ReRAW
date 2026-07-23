@@ -3,6 +3,7 @@
 
 enum Command {
     COMMAND_HEADER,
+    COMMAND_EXTRACT_FILE_TABLE,
     COMMAND_COUNT
 };
 

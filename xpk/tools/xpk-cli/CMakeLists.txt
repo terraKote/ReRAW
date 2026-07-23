@@ -8,6 +8,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_executable(xpk-cli
         main.c
         commands/header.c
+        commands/extract_file_table.c
         cli/parser.c
 )
 
