@@ -25,7 +25,7 @@ typedef struct {
 typedef struct {
     uint8_t depth;
     int16_t parent;
-    FileEntry *file;
+    char* file_name;
     uint32_t pointer;
 } TreeNode;
 

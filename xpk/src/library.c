@@ -94,14 +94,8 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
 
     while (!is_end_reached) {
         // Read the file entry
-        FileEntry *file_entry = malloc(sizeof(*file_entry));
-
-        if (file_entry == NULL) {
-            fprintf(stderr, "Error allocating memory for file_entry\n");
-            free(file_entry);
-            break;
-        }
-        read_file_entry(file, offset, file_entry);
+        FileEntry file_entry = {0};
+        read_file_entry(file, offset, &file_entry);
 
         // Copy depth
         const uint8_t current_depth = depth;
@@ -109,7 +103,7 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
         parent_stack[depth] = parent;
 
         // Evaluate file type
-        switch (file_entry->file_type) {
+        switch (file_entry.file_type) {
             // Empty data sentinel
             default:
             case 0x00:
@@ -130,7 +124,6 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
                     is_end_reached = true;
                 }
 
-                free(file_entry);
                 continue;
 
             // File entry sentinel
@@ -142,7 +135,7 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
             case 0x02:
                 depth++;
                 parent = next_element_index;
-                offset = file_entry->file_index;
+                offset = file_entry.file_index;
                 break;
         }
 
@@ -154,18 +147,28 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
 
             if (tempNodeBuffer == NULL) {
                 fprintf(stderr, "Error allocating memory for nodes\n");
-                free(file_entry);
                 break;
             }
 
             nodes = tempNodeBuffer;
         }
 
+        // Copy name
+        size_t length = strlen(file_entry.file_name) + 1;
+        char *name_buffer = malloc(length * sizeof(char));
+
+        if (name_buffer == NULL) {
+            fprintf(stderr, "Error allocating memory for name\n");
+            return false;
+        }
+
+        strcpy(name_buffer, file_entry.file_name);
+
         // Assign node
         nodes[next_element_index].depth = current_depth;
-        nodes[next_element_index].file = file_entry;
         nodes[next_element_index].pointer = ftell(file);
         nodes[next_element_index].parent = parent_stack[current_depth];
+        nodes[next_element_index].file_name = name_buffer;
 
         next_element_index++;
     }
@@ -193,7 +196,7 @@ bool get_xpkt_d_file_entries(const char *file_path, TreeNode **tree, uint16_t *e
 
 void clear_xpkt_d_file_entries(TreeNode **tree, uint16_t entry_count) {
     for (int i = 0; i < entry_count; i++) {
-        free(tree[i]->file);
+        free(tree[i]->file_name);
         free(tree[i]);
     }
     free(tree);
